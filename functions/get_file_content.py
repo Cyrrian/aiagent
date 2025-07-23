@@ -1,4 +1,19 @@
 import os
+from google.genai import types
+
+schema_get_file_content = types.FunctionDeclaration(
+    name="get_file_content",
+    description="Lists the content of the file specified, constrained to the working directory.",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "file": types.Schema(
+                type=types.Type.STRING,
+                description="The file to list the content of, relative to the working directory. If not provided, results in an error.",
+            ),
+        },
+    ),
+)
 
 def get_file_content(working_directory, file_path):
     MAX_CHARS = 10000
