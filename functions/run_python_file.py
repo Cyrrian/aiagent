@@ -14,7 +14,7 @@ schema_run_python_file = types.FunctionDeclaration(
             ),
             "args": types.Schema(
                 type=types.Type.STRING,
-                description="Option arguments to provide to the python file.",
+                description="Optional arguments to provide to the python file.",
             ),
 
         },
