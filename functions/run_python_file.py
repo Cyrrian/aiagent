@@ -4,46 +4,57 @@ from google.genai import types
 
 schema_run_python_file = types.FunctionDeclaration(
     name="run_python_file",
-    description="Run the specified python file, constrained to the working directory.",
+    description="Executes a Python file within the working directory and returns the output from the interpreter.",
     parameters=types.Schema(
         type=types.Type.OBJECT,
         properties={
-            "file": types.Schema(
+            "file_path": types.Schema(
                 type=types.Type.STRING,
-                description="The file to run, relative to the working directory. If not provided or if not a python fille, returns an error.",
+                description="Path to the Python file to execute, relative to the working directory.",
             ),
             "args": types.Schema(
-                type=types.Type.STRING,
-                description="Optional arguments to provide to the python file.",
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.STRING,
+                    description="Optional arguments to pass to the Python file.",
+                ),
+                description="Optional arguments to pass to the Python file.",
             ),
-
         },
+        required=["file_path"],
     ),
 )
 
 def run_python_file(working_directory, file_path, args=[]):
     working_directory_abs = os.path.abspath(working_directory)
     full_path_abs = os.path.abspath(os.path.join(working_directory_abs, file_path))
-
-    result = ""
-
     if not full_path_abs.startswith(working_directory_abs):
-        result = f'Error: Cannot execute "{file_path}" as it is outside the permitted working directory'
-        return result
-    
+        return f'Error: Cannot execute "{file_path}" as it is outside the permitted working directory'    
     if not os.path.exists(full_path_abs):
-        result =  f'Error: File "{file_path}" not found.'
-        return result
-    
+        return f'Error: File "{file_path}" not found.'
     if not full_path_abs.endswith('.py'):
-        result = f'Error: "{file_path}" is not a Python file.'
-        return result
+        return f'Error: "{file_path}" is not a Python file.'
     
-    process_result = subprocess.run(['uv', 'run', full_path_abs, *args], capture_output=True, timeout=30)
+    try:
+        commands = ["python", full_path_abs]
+        if args:
+            commands.extend(args)
+        result = subprocess.run(
+            commands,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=working_directory_abs,
+        )
+        output = []
+        if result.stdout:
+            output.append(f"STDOUT:\n{result.stdout}")
+        if result.stderr:
+            output.append(f"STDERR:\n{result.stderr}")
 
-    if len(process_result.stdout):
-        result += f"STDOUT: {process_result.stdout}"
-    if len(process_result.stderr):
-        result += f"STDOUT: {process_result.stderr}"
+        if result.returncode != 0:
+            output.append(f"Process exited with code {result.returncode}")
 
-    return result
+        return "\n".join(output) if output else "No output produced."
+    except Exception as e:
+        return f"Error: executing Python file: {e}"
