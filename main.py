@@ -27,15 +27,23 @@ def main():
   
     user_prompt = " ".join(args)
 
-    messages = [
-        types.Content(role='user', parts=[types.Part(text=user_prompt)]),
-    ]
+    messages = [types.Content(role='user', parts=[types.Part(text=user_prompt)])]
 
     if verbose:
         print('\nUSER PROMPT:')
         print(f'\t{user_prompt}')
 
-    print(execute_prompt(AI_CLIENT, messages, verbose))
+    count = 0
+    response = None
+
+    try:
+        while count < 20 and not response:
+            response = execute_prompt(AI_CLIENT, messages, verbose)
+            count += 1
+    except Exception as e:
+            print(f"Error in generate_content: {e}")
+            
+    print(response)
         
 
 def execute_prompt(client, messages, verbose):
@@ -44,13 +52,17 @@ def execute_prompt(client, messages, verbose):
         contents=messages, 
         config=types.GenerateContentConfig(tools=[available_functions], system_instruction=SYSTEM_PROMPT)
     )
-  
+    
+    for candidate in response.candidates:
+        messages.append(candidate.content)
+
     if not response.function_calls:
         return response.text
 
     function_responses = []
     for function_call_part in response.function_calls:
         function_call_result = call_function(function_call_part, verbose)
+        messages.append(types.Content(role='tool', parts=function_call_result.parts))
         if not function_call_result.parts or not function_call_result.parts[0].function_response:
             raise Exception('Invalid function response')
         if verbose:
